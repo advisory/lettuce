@@ -48,6 +48,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.set_defaults(verbosity=3)  # default verbosity is 3
+        parser.add_argument('file_paths', nargs='*', type=str)
         parser.add_argument(
             '-a', '--apps', action='store', dest='apps', default='',
             help='Run ONLY the django apps that are listed here. Comma separated'
@@ -149,6 +150,7 @@ class Command(BaseCommand):
         setup_test_environment()
 
         verbosity = options['verbosity']
+        file_paths = options['file_paths']
         no_color = options.get('no_color', False)
         apps_to_run = tuple(options['apps'].split(","))
         apps_to_avoid = tuple(options['avoid_apps'].split(","))
@@ -183,7 +185,7 @@ class Command(BaseCommand):
 
         settings.DEBUG = options.get('debug', False)
 
-        paths = self.get_paths(args, apps_to_run, apps_to_avoid)
+        paths = self.get_paths(file_paths, apps_to_run, apps_to_avoid)
         server = get_server(port=options['port'], threading=threading)
 
         if run_server:
