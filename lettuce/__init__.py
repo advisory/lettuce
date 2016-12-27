@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__version__ = version = '0.2.20'
+__version__ = version = '0.2.23'
 
 release = 'kryptonite'
 
@@ -40,12 +40,13 @@ from lettuce.decorators import step, steps
 from lettuce.registry import call_hook
 from lettuce.registry import STEP_REGISTRY
 from lettuce.registry import CALLBACK_REGISTRY
-from lettuce.exceptions import StepLoadingError
+from lettuce.exceptions import StepLoadingError, LettuceRunnerError
 from lettuce.plugins import (
     xunit_output,
     subunit_output,
     autopdb,
     smtp_mail_queue,
+    jsonreport_output,
 )
 from lettuce import fs
 from lettuce import exceptions
@@ -71,7 +72,7 @@ __all__ = [
 try:
     terrain = fs.FileSystem._import("terrain")
     reload(terrain)
-except Exception, e:
+except Exception as e:
     if not "No module named terrain" in str(e):
         string = 'Lettuce has tried to load the conventional environment ' \
             'module "terrain"\nbut it has errors, check its contents and ' \
@@ -79,7 +80,7 @@ except Exception, e:
 
         sys.stderr.write(string)
         sys.stderr.write(exceptions.traceback.format_exc(e))
-        raise SystemExit(1)
+        raise LettuceRunnerError(string)
 
 
 class Runner(object):
@@ -88,11 +89,13 @@ class Runner(object):
     Takes a base path as parameter (string), so that it can look for
     features and step definitions on there.
     """
-    def __init__(self, base_path, scenarios=None, verbosity=0, random=False,
+    def __init__(self, base_path, scenarios=None,
+                 verbosity=0, no_color=False, random=False,
                  enable_xunit=False, xunit_filename=None,
                  enable_subunit=False, subunit_filename=None,
+                 enable_jsonreport=False, jsonreport_filename=None,
                  tags=None, failfast=False, auto_pdb=False,
-                 smtp_queue=None):
+                 smtp_queue=None, root_dir=None):
 
         """ lettuce.Runner will try to find a terrain.py file and
         import it from within `base_path`
@@ -106,7 +109,7 @@ class Runner(object):
             base_path = os.path.dirname(base_path)
 
         sys.path.insert(0, base_path)
-        self.loader = fs.FeatureLoader(base_path)
+        self.loader = fs.FeatureLoader(base_path, root_dir)
         self.verbosity = verbosity
         self.scenarios = scenarios and map(int, scenarios.split(",")) or None
         self.failfast = failfast
@@ -122,9 +125,10 @@ class Runner(object):
         elif verbosity is 2:
             from lettuce.plugins import scenario_names as output
         elif verbosity is 3:
-            from lettuce.plugins import shell_output as output
-        else:
-            from lettuce.plugins import colored_shell_output as output
+            if no_color:
+                from lettuce.plugins import shell_output as output
+            else:
+                from lettuce.plugins import colored_shell_output as output
 
         self.random = random
 
@@ -135,6 +139,9 @@ class Runner(object):
 
         if enable_subunit:
             subunit_output.enable(filename=subunit_filename)
+
+        if enable_jsonreport:
+            jsonreport_output.enable(filename=jsonreport_filename)
 
         reload(output)
 
@@ -161,7 +168,7 @@ class Runner(object):
         # that we don't even want to test.
         try:
             self.loader.find_and_load_step_definitions()
-        except StepLoadingError, e:
+        except StepLoadingError as e:
             print "Error loading step definitions:\n", e
             return
 
@@ -177,7 +184,10 @@ class Runner(object):
                                 random=self.random,
                                 failfast=self.failfast))
 
-        except exceptions.LettuceSyntaxError, e:
+        except exceptions.LettuceSyntaxError as e:
+            sys.stderr.write(e.msg)
+            failed = True
+        except exceptions.NoDefinitionFound, e:
             sys.stderr.write(e.msg)
             failed = True
         except:
@@ -198,6 +208,6 @@ class Runner(object):
             call_hook('after', 'all', total)
 
             if failed:
-                raise SystemExit(2)
+                raise LettuceRunnerError("Test failed.")
 
             return total

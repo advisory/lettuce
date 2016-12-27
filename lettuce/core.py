@@ -41,7 +41,7 @@ class REP(object):
     "RegEx Pattern"
     first_of = re.compile(ur'^first_of_')
     last_of = re.compile(ur'^last_of_')
-    language = re.compile(u"language:[ ]*([^\s]+)")
+    language = re.compile(u"\s*#\s*language:[ ]*([^\s]+)")
     within_double_quotes = re.compile(r'("[^"]+")')
     within_single_quotes = re.compile(r"('[^']+')")
     only_whitespace = re.compile('^\s*$')
@@ -143,7 +143,7 @@ class StepDefinition(object):
         try:
             ret = self.function(self.step, *args, **kw)
             self.step.passed = True
-        except Exception, e:
+        except Exception as e:
             self.step.failed = True
             self.step.why = ReasonToFail(self.step, e)
             raise
@@ -357,9 +357,9 @@ class Step(object):
 
     def _get_match(self, ignore_case):
         matched, func = None, lambda: None
-
-        for regex, func in STEP_REGISTRY.items():
-            matched = re.search(regex, self.sentence, ignore_case and re.I or 0)
+        for step, func in STEP_REGISTRY.items():
+            regex = STEP_REGISTRY.get_regex(step, ignore_case)
+            matched = regex.search(self.sentence)
             if matched:
                 break
 
@@ -479,10 +479,10 @@ class Step(object):
                     step.run(ignore_case)
                     steps_passed.append(step)
 
-            except NoDefinitionFound, e:
+            except NoDefinitionFound as e:
                 steps_undefined.append(e.step)
 
-            except Exception, e:
+            except Exception as e:
                 steps_failed.append(step)
                 reasons_to_fail.append(step.why)
                 if failfast:
@@ -721,28 +721,37 @@ class Scenario(object):
 
         def run_scenario(almost_self, order=-1, outline=None, run_callbacks=False):
             try:
+                if outline:
+                    self._report_outline_hook(outline, True)
                 if self.background:
                     self.background.run(ignore_case)
 
                 reasons_to_fail = []
                 all_steps, steps_passed, steps_failed, steps_undefined = Step.run_all(self.steps, outline, run_callbacks, ignore_case, failfast=failfast, display_steps=(order < 1), reasons_to_fail=reasons_to_fail)
             except:
+                if outline:
+                    # Can't use "finally" here since we need to call it before after_each_scenario
+                    self._report_outline_hook(outline, False)
                 call_hook('after_each', 'scenario', self)
                 raise
             finally:
                 if outline:
                     call_hook('outline', 'scenario', self, order, outline,
                             reasons_to_fail)
+            if outline:
+                self._report_outline_hook(outline, False)
 
             skip = lambda x: x not in steps_passed and x not in steps_undefined and x not in steps_failed
             steps_skipped = filter(skip, all_steps)
 
             return ScenarioResult(
                 self,
+                all_steps,
                 steps_passed,
                 steps_failed,
                 steps_skipped,
-                steps_undefined
+                steps_undefined,
+                outline
             )
 
         if self.outlines:
@@ -760,6 +769,17 @@ class Scenario(object):
 
         for step in self.solved_steps:
             step.scenario = self
+
+    def _report_outline_hook(self, outline, started):
+        """
+        Function called before each outline and after each outline to provide hooks
+        :param outline: dict with examples row
+        :type outline dict
+        :param started: is outline started or finished
+        :type started bool
+        """
+        call_hook('before_each' if started else 'after_each', 'outline', self, outline)
+
 
     def _resolve_steps(self, steps, outlines, with_file, original_string):
         for outline_idx, outline in enumerate(outlines):
@@ -885,7 +905,7 @@ class Background(object):
             call_hook('before_each', 'step', step)
             try:
                 results.append(step.run(ignore_case))
-            except Exception, e:
+            except Exception as e:
                 print e
                 pass
 
@@ -1047,7 +1067,7 @@ class Feature(object):
         if not language:
             language = Language()
 
-        found = len(re.findall(r'(?:%s):[ ]*\w+' % language.feature, "\n".join(lines), re.U))
+        found = len(re.findall(r'^[ \t]*(?:%s):[ ]*\w+' % language.feature, "\n".join(lines), re.U + re.M))
 
         if found > 1:
             raise LettuceSyntaxError(with_file,
@@ -1058,7 +1078,7 @@ class Feature(object):
                 'Features must have a name. e.g: "Feature: This is my name"')
 
         while lines:
-            matched = re.search(r'(?:%s):(.*)' % language.feature, lines[0], re.I)
+            matched = re.search(r'^[ \t]*(?:%s):(.*)' % language.feature, lines[0], re.I)
             if matched:
                 name = matched.groups()[0].strip()
                 break
@@ -1236,18 +1256,19 @@ class FeatureResult(object):
 
 class ScenarioResult(object):
     """Object that holds results of each step ran from within a scenario"""
-    def __init__(self, scenario, steps_passed, steps_failed, steps_skipped,
-                 steps_undefined):
+    def __init__(self, scenario, all_steps, steps_passed, steps_failed, steps_skipped,
+                 steps_undefined, outline=None):
 
         self.scenario = scenario
 
+        self.all_steps = all_steps
         self.steps_passed = steps_passed
         self.steps_failed = steps_failed
         self.steps_skipped = steps_skipped
         self.steps_undefined = steps_undefined
+        self.outline = outline
 
-        all_lists = [steps_passed + steps_skipped + steps_undefined + steps_failed]
-        self.total_steps = sum(map(len, all_lists))
+        self.total_steps = len(all_steps)
 
     @property
     def passed(self):
@@ -1308,6 +1329,9 @@ class TotalResult(object):
     def scenarios_passed(self):
         return len([result for result in self.scenario_results if result.passed])
 
+    @property
+    def is_success(self):
+        return not bool(self.failed_scenario_locations)
 
 
 class SummaryTotalResults(TotalResult):
@@ -1354,4 +1378,3 @@ class SummaryTotalResults(TotalResult):
                     self._proposed_definitions.extend(scenario_result.steps_undefined)
                     if len(scenario_result.steps_failed) > 0:
                         self.failed_scenario_locations.append(scenario_result.scenario.represented())
-

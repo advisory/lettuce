@@ -26,6 +26,7 @@ from inspect import currentframe
 from nose.tools import assert_equals, with_setup, assert_raises
 from lettuce.fs import FeatureLoader
 from lettuce.core import Feature, fs, StepDefinition
+from lettuce.exceptions import LettuceRunnerError
 from lettuce.terrain import world
 from lettuce import Runner
 
@@ -70,7 +71,7 @@ def test_try_to_import_terrain():
         import lettuce
         reload(lettuce)
         raise AssertionError('The runner should raise ImportError !')
-    except SystemExit:
+    except LettuceRunnerError:
         assert_stderr_lines_with_traceback(
             'Lettuce has tried to load the conventional environment module '
             '"terrain"\nbut it has errors, check its contents and '
@@ -170,7 +171,7 @@ def test_defined_step_represent_string():
 def test_output_with_success_colorless2():
     "Testing the colorless output of a successful feature"
 
-    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'runner_features'), verbosity=3)
+    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'runner_features'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -193,7 +194,7 @@ def test_output_with_success_colorless2():
 def test_output_with_success_colorless():
     "A feature with two scenarios should separate the two scenarios with a new line (in colorless mode)."
 
-    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_scenarios'), verbosity=3)
+    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_scenarios'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -219,7 +220,7 @@ def test_output_with_success_colorless():
 def test_output_with_success_colorful():
     "Testing the output of a successful feature"
 
-    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'runner_features'), verbosity=4)
+    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'runner_features'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines(
@@ -243,7 +244,7 @@ def test_output_with_success_colorful():
 def test_output_with_success_colorful_newline():
     "A feature with two scenarios should separate the two scenarios with a new line (in color mode)."
 
-    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_scenarios'), verbosity=4)
+    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_scenarios'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines(
@@ -270,7 +271,7 @@ def test_output_with_success_colorful_newline():
 @with_setup(prepare_stdout)
 def test_output_with_success_colorless_many_features():
     "Testing the output of many successful features"
-    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_features'), verbosity=3)
+    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_features'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -301,7 +302,7 @@ def test_output_with_success_colorless_many_features():
 def test_output_with_success_colorful_many_features():
     "Testing the colorful output of many successful features"
 
-    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_features'), verbosity=4)
+    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_features'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines(
@@ -337,7 +338,7 @@ def test_output_when_could_not_find_features():
     "Testing the colorful output of many successful features"
 
     path = fs.relpath(join(abspath(dirname(__file__)), 'no_features', 'unexistent-folder'))
-    runner = Runner(path, verbosity=4)
+    runner = Runner(path, verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines(
@@ -351,7 +352,7 @@ def test_output_when_could_not_find_features_colorless():
     "Testing the colorful output of many successful features colorless"
 
     path = fs.relpath(join(abspath(dirname(__file__)), 'no_features', 'unexistent-folder'))
-    runner = Runner(path, verbosity=3)
+    runner = Runner(path, verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -378,7 +379,7 @@ def test_output_when_could_not_find_features_verbosity_level_2():
 def test_output_with_success_colorless_with_table():
     "Testing the colorless output of success with table"
 
-    runner = Runner(feature_name('success_table'), verbosity=3)
+    runner = Runner(feature_name('success_table'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -407,7 +408,7 @@ def test_output_with_success_colorless_with_table():
 def test_output_with_success_colorful_with_table():
     "Testing the colorful output of success with table"
 
-    runner = Runner(feature_name('success_table'), verbosity=4)
+    runner = Runner(feature_name('success_table'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines(
@@ -446,7 +447,7 @@ def test_output_with_success_colorful_with_table():
 def test_output_with_failed_colorless_with_table():
     "Testing the colorless output of failed with table"
 
-    runner = Runner(feature_name('failed_table'), verbosity=3)
+    runner = Runner(feature_name('failed_table'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines_with_traceback(
@@ -493,7 +494,7 @@ def test_output_with_failed_colorless_with_table():
 def test_output_with_failed_colorful_with_table():
     "Testing the colorful output of failed with table"
 
-    runner = Runner(feature_name('failed_table'), verbosity=4)
+    runner = Runner(feature_name('failed_table'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines_with_traceback(
@@ -545,7 +546,7 @@ def test_output_with_failed_colorful_with_table():
 def test_output_with_successful_outline_colorless():
     "With colorless output, a successful outline scenario should print beautifully."
 
-    runner = Runner(feature_name('success_outline'), verbosity=3)
+    runner = Runner(feature_name('success_outline'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -581,7 +582,7 @@ def test_output_with_successful_outline_colorless():
 def test_output_with_successful_outline_colorful():
     "With colored output, a successful outline scenario should print beautifully."
 
-    runner = Runner(feature_name('success_outline'), verbosity=4)
+    runner = Runner(feature_name('success_outline'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines_with_traceback(
@@ -617,7 +618,7 @@ def test_output_with_successful_outline_colorful():
 def test_output_with_failful_outline_colorless():
     "With colorless output, an unsuccessful outline scenario should print beautifully."
 
-    runner = Runner(feature_name('fail_outline'), verbosity=3)
+    runner = Runner(feature_name('fail_outline'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines_with_traceback(
@@ -667,7 +668,7 @@ def test_output_with_failful_outline_colorless():
 def test_output_with_failful_outline_colorful():
     "With colored output, an unsuccessful outline scenario should print beautifully."
 
-    runner = Runner(feature_name('fail_outline'), verbosity=4)
+    runner = Runner(feature_name('fail_outline'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines_with_traceback(
@@ -717,7 +718,7 @@ def test_output_with_failful_outline_colorful():
 def test_output_snippets_with_groups_within_double_quotes_colorless():
     "Testing that the proposed snippet is clever enough to identify groups within double quotes. colorless"
 
-    runner = Runner(feature_name('double-quoted-snippet'), verbosity=3)
+    runner = Runner(feature_name('double-quoted-snippet'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -746,7 +747,7 @@ def test_output_snippets_with_groups_within_double_quotes_colorless():
 def test_output_snippets_with_groups_within_double_quotes_colorful():
     "Testing that the proposed snippet is clever enough to identify groups within double quotes. colorful"
 
-    runner = Runner(feature_name('double-quoted-snippet'), verbosity=4)
+    runner = Runner(feature_name('double-quoted-snippet'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines(
@@ -775,7 +776,7 @@ def test_output_snippets_with_groups_within_double_quotes_colorful():
 def test_output_snippets_with_groups_within_single_quotes_colorless():
     "Testing that the proposed snippet is clever enough to identify groups within single quotes. colorless"
 
-    runner = Runner(feature_name('single-quoted-snippet'), verbosity=3)
+    runner = Runner(feature_name('single-quoted-snippet'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -804,7 +805,7 @@ def test_output_snippets_with_groups_within_single_quotes_colorless():
 def test_output_snippets_with_groups_within_single_quotes_colorful():
     "Testing that the proposed snippet is clever enough to identify groups within single quotes. colorful"
 
-    runner = Runner(feature_name('single-quoted-snippet'), verbosity=4)
+    runner = Runner(feature_name('single-quoted-snippet'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines(
@@ -833,7 +834,7 @@ def test_output_snippets_with_groups_within_single_quotes_colorful():
 def test_output_snippets_with_groups_within_redundant_quotes():
     "Testing that the proposed snippet is clever enough to avoid duplicating the same snippet"
 
-    runner = Runner(feature_name('redundant-steps-quotes'), verbosity=3)
+    runner = Runner(feature_name('redundant-steps-quotes'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -863,7 +864,7 @@ def test_output_snippets_with_groups_within_redundant_quotes():
 def test_output_snippets_with_normalized_unicode_names():
     "Testing that the proposed snippet is clever enough normalize method names even with latin accents"
 
-    runner = Runner(feature_name('latin-accents'), verbosity=3)
+    runner = Runner(feature_name('latin-accents'), verbosity=3, no_color=True)
     runner.run()
 
     assert_stdout_lines(
@@ -1260,7 +1261,7 @@ def test_output_background_with_success_colorless():
         pass
 
     filename = bg_feature_name('simple')
-    runner = Runner(filename, verbosity=3)
+    runner = Runner(filename, verbosity=3, no_color=True)
 
     runner.run()
 
@@ -1286,7 +1287,7 @@ def test_output_background_with_success_colorless():
 
 @with_setup(prepare_stdout)
 def test_output_background_with_success_colorful():
-    "A feature with background should print it accordingly under verbosity 4"
+    "A feature with background should print it accordingly under verbosity 3 and colored output"
 
     from lettuce import step
 
@@ -1297,7 +1298,7 @@ def test_output_background_with_success_colorful():
         pass
 
     filename = bg_feature_name('simple')
-    runner = Runner(filename, verbosity=4)
+    runner = Runner(filename, verbosity=3, no_color=False)
 
     runner.run()
 
@@ -1367,7 +1368,7 @@ def test_many_features_a_file():
 
     filename = syntax_feature_name('many_features_a_file')
     runner = Runner(filename)
-    assert_raises(SystemExit, runner.run)
+    assert_raises(LettuceRunnerError, runner.run)
 
     assert_stderr_lines(
         'Syntax error at: %s\n'
@@ -1382,7 +1383,7 @@ def test_feature_without_name():
     filename = syntax_feature_name('feature_without_name')
     runner = Runner(filename)
 
-    assert_raises(SystemExit, runner.run)
+    assert_raises(LettuceRunnerError, runner.run)
 
     assert_stderr_lines(
         'Syntax error at: %s\n'
@@ -1398,7 +1399,7 @@ def test_feature_missing_scenarios():
     filename = syntax_feature_name("feature_missing_scenarios")
     runner = Runner(filename)
 
-    assert_raises(SystemExit, runner.run)
+    assert_raises(LettuceRunnerError, runner.run)
 
     assert_stderr_lines(
         u"Syntax error at: %s\n"
@@ -1410,7 +1411,7 @@ def test_feature_missing_scenarios():
 def test_output_with_undefined_steps_colorful():
     "With colored output, an undefined step should be printed in sequence."
 
-    runner = Runner(feature_name('undefined_steps'), verbosity=4)
+    runner = Runner(feature_name('undefined_steps'), verbosity=3, no_color=False)
     runner.run()
 
     assert_stdout_lines_with_traceback(
